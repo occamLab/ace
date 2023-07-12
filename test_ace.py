@@ -92,6 +92,9 @@ if __name__ == '__main__':
 
     parser.add_argument('--render_frame_skip', type=int, default=1,
                         help='skip every xth frame for long and dense query sequences')
+    
+    parser.add_argument('--frame_exclusion_threshold', type=int, default=400,
+                        help='ignore frames not in the scene by filtering out inliers, 0 to include all frames')
 
     opt = parser.parse_args()
 
@@ -231,6 +234,8 @@ if __name__ == '__main__':
                     opt.maxpixelerror,
                     network.OUTPUT_SUBSAMPLE,
                 )
+                if inlier_count < opt.frame_exclusion_threshold:
+                    continue
 
                 # Calculate translation error.
                 t_err = float(torch.norm(gt_pose_44[0:3, 3] - out_pose[0:3, 3]))
@@ -293,13 +298,14 @@ if __name__ == '__main__':
             avg_batch_time += time.time() - batch_start_time
             num_batches += 1
 
-    total_frames = len(rErrs)
-    assert total_frames == len(testset)
+    frames_included = len(rErrs)
+    if opt.frame_exclusion_threshold == 0:
+        assert frames_included == len(testset)
 
     # Compute median errors.
     tErrs.sort()
     rErrs.sort()
-    median_idx = total_frames // 2
+    median_idx = frames_included // 2
     median_rErr = rErrs[median_idx]
     median_tErr = tErrs[median_idx]
 
@@ -307,13 +313,15 @@ if __name__ == '__main__':
     avg_time = avg_batch_time / num_batches
 
     # Compute final metrics.
-    pct10_5 = pct10_5 / total_frames * 100
-    pct5 = pct5 / total_frames * 100
-    pct2 = pct2 / total_frames * 100
-    pct1 = pct1 / total_frames * 100
+    pct10_5 = pct10_5 / frames_included * 100
+    pct5 = pct5 / frames_included * 100
+    pct2 = pct2 / frames_included * 100
+    pct1 = pct1 / frames_included * 100
 
     _logger.info("===================================================")
     _logger.info("Test complete.")
+
+    _logger.info("{} frames included out of {} total frames".format(frames_included, len(testset)))
 
     _logger.info('Accuracy:')
     _logger.info(f'\t10cm/5deg: {pct10_5:.1f}%')
