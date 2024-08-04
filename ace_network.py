@@ -86,14 +86,14 @@ class Head(nn.Module):
         self.res3_conv2 = nn.Conv2d(self.head_channels, self.head_channels, 1, 1, 0)
         self.res3_conv3 = nn.Conv2d(self.head_channels, self.head_channels, 1, 1, 0)
 
-        self.res_blocks = []
+        self.res_blocks = nn.ModuleList()
 
         for block in range(num_head_blocks):
-            self.res_blocks.append((
+            self.res_blocks.append(nn.ModuleList([
                 nn.Conv2d(self.head_channels, self.head_channels, 1, 1, 0),
                 nn.Conv2d(self.head_channels, self.head_channels, 1, 1, 0),
                 nn.Conv2d(self.head_channels, self.head_channels, 1, 1, 0),
-            ))
+            ]))
 
             super(Head, self).add_module(str(block) + 'c0', self.res_blocks[block][0])
             super(Head, self).add_module(str(block) + 'c1', self.res_blocks[block][1])
@@ -140,7 +140,7 @@ class Head(nn.Module):
             # Dehomogenize coords:
             # Softplus ensures we have a smooth homogeneous parameter with a minimum value = self.max_inv_scale.
             h_slice = F.softplus(sc[:, 3, :, :].unsqueeze(1), beta=self.h_beta.item()) + self.max_inv_scale
-            h_slice.clamp_(max=self.min_inv_scale)
+            h_slice.clamp_(max=self.min_inv_scale.item())
             sc = sc[:, :3] / h_slice
 
         # Add the mean to the predicted coordinates.
