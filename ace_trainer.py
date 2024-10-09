@@ -341,6 +341,7 @@ class TrainerACE:
                     buffer_idx = buffer_offset
                     if buffer_idx >= self.options.training_buffer_size:
                         break
+                    _logger.info(f"Buffer Population Progress: {buffer_idx}/{self.options.training_buffer_size} ({buffer_idx / self.options.training_buffer_size * 100:.4})")
 
         buffer_memory = sum([v.element_size() * v.nelement() for k, v in self.training_buffer.items()])
         buffer_memory /= 1024 * 1024 * 1024
