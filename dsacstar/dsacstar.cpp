@@ -71,7 +71,8 @@ int dsacstar_rgb_forward(
 	float ppointY,
 	float inlierAlpha,
 	float maxReproj,
-	int subSampling)
+	int subSampling,
+	at::Tensor inlierMapOutSrc)
 {
 	ThreadRand::init();
 
@@ -176,6 +177,13 @@ int dsacstar_rgb_forward(
 	for(unsigned x = 0; x < 4; x++)
 	for(unsigned y = 0; y < 4; y++)
 		outPose[y][x] = estTrans(y, x);
+
+	auto inlierMapOut = inlierMapOutSrc.accessor<float, 2>();
+	for (int x = 0; x < sampling.cols; x++)
+	for (int y = 0; y < sampling.rows; y++)
+	{
+		inlierMapOut[y][x] = inlierMap(y, x);
+	}
 
 	// Return the inlier count. cv::sum returns a scalar, so we return its first element.
 	return cv::sum(inlierMap)[0];

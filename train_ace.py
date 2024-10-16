@@ -40,10 +40,10 @@ if __name__ == '__main__':
     parser.add_argument('--learning_rate_max', type=float, default=0.005,
                         help='highest learning rate of 1 cycle scheduler')
 
-    parser.add_argument('--training_buffer_size', type=int, default=8000000,
+    parser.add_argument('--training_buffer_size', type=int, default=16000000,
                         help='number of patches in the training buffer')
 
-    parser.add_argument('--samples_per_image', type=int, default=1024,
+    parser.add_argument('--samples_per_image', type=int, default=4096,
                         help='number of patches drawn from each image when creating the buffer')
 
     parser.add_argument('--batch_size', type=int, default=5120,
@@ -76,7 +76,7 @@ if __name__ == '__main__':
     parser.add_argument('--aug_scale', type=float, default=1.5,
                         help='max scale factor')
 
-    parser.add_argument('--image_resolution', type=int, default=480,
+    parser.add_argument('--image_resolution', type=int, default=1440,
                         help='base image resolution')
 
     parser.add_argument('--repro_loss_type', type=str, default="dyntanh",

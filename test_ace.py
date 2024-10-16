@@ -13,6 +13,8 @@ import numpy as np
 import torch
 from torch.cuda.amp import autocast
 from torch.utils.data import DataLoader
+from datetime import datetime
+import os
 
 import dsacstar
 from ace_network import Regressor
@@ -48,7 +50,7 @@ if __name__ == '__main__':
                         help='custom session name appended to output files, '
                              'useful to separate different runs of a script')
 
-    parser.add_argument('--image_resolution', type=int, default=480, help='base image resolution')
+    parser.add_argument('--image_resolution', type=int, default=1440, help='base image resolution')
 
     # ACE is RGB-only, no need for this param.
     # parser.add_argument('--mode', '-m', type=int, default=1, choices=[1, 2], help='test mode: 1 = RGB, 2 = RGB-D')
@@ -158,6 +160,15 @@ if __name__ == '__main__':
     pct2 = 0
     pct1 = 0
 
+    # Annotated Image Output Directory
+    # TODO: This should use the test name in the dir, not the datetime
+    base_annotation_output_dir = output_dir / f"annotated"
+    if not base_annotation_output_dir.exists():
+        os.mkdir(base_annotation_output_dir)
+    annotation_output_dir = base_annotation_output_dir / f"{datetime.now().strftime('%m_%d_%y_%H_%M_%S')}"
+    if not annotation_output_dir.exists():
+        os.mkdir(annotation_output_dir)
+
     # Generate video of training process
     if opt.render_visualization:
         # infer rendering folder from map file name
@@ -220,6 +231,7 @@ if __name__ == '__main__':
 
                 # Allocate output variable.
                 out_pose = torch.zeros((4, 4))
+                inlier_map = torch.zeros((scene_coordinates_B3HW.shape[2], scene_coordinates_B3HW.shape[3]))
 
                 # Compute the pose via RANSAC.
                 inlier_count = dsacstar.forward_rgb(
@@ -233,7 +245,22 @@ if __name__ == '__main__':
                     opt.inlieralpha,
                     opt.maxpixelerror,
                     network.OUTPUT_SUBSAMPLE,
+                    inlier_map
                 )
+                
+                annotated_image = cv2.imread(frame_path)
+                downsampling_rate = annotated_image.shape[0] / scene_coordinates_3HW.shape[1]
+
+                for y in range(inlier_map.shape[0]):
+                    for x in range(inlier_map.shape[1]):
+                        if inlier_map[y][x] != 0:
+                            circle_cen_x = int(x * downsampling_rate + downsampling_rate // 2)
+                            circle_cen_y = int(y * downsampling_rate + downsampling_rate // 2)
+                            cv2.circle(annotated_image, (circle_cen_x, circle_cen_y), int(downsampling_rate // 2), (203, 192, 255), 2)
+                
+                output_img_fp = str(annotation_output_dir / frame_path.split("/")[-1]).replace(".jpg", ".png")
+                cv2.imwrite(output_img_fp, annotated_image)
+
                 if inlier_count < opt.frame_exclusion_threshold:
                     continue
 
