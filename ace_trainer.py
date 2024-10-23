@@ -3,6 +3,8 @@
 import logging
 import random
 import time
+from copy import deepcopy
+import os
 
 import numpy as np
 import torch
@@ -11,6 +13,7 @@ import torchvision.transforms.functional as TF
 from torch.cuda.amp import GradScaler, autocast
 from torch.utils.data import DataLoader
 from torch.utils.data import sampler
+import cv2
 
 from ace_util import get_pixel_grid, to_homogeneous
 from ace_loss import ReproLoss
@@ -258,6 +261,10 @@ class TrainerACE:
         # Features are computed in evaluation mode.
         self.regressor.eval()
 
+        output_image_dir = self.options.scene / "train/annotated/"
+        if not output_image_dir.exists():
+            os.mkdir(output_image_dir)
+
         # The encoder is pretrained, so we don't compute any gradient.
         with torch.no_grad():
             # Iterate until the training buffer is full.
@@ -266,7 +273,7 @@ class TrainerACE:
 
             while buffer_idx < self.options.training_buffer_size:
                 dataset_passes += 1
-                for image_B1HW, image_mask_B1HW, gt_pose_B44, gt_pose_inv_B44, intrinsics_B33, intrinsics_inv_B33, _, _ in training_dataloader:
+                for image_B1HW, image_mask_B1HW, gt_pose_B44, gt_pose_inv_B44, intrinsics_B33, intrinsics_inv_B33, _, image_fp in training_dataloader:
 
                     # Copy to device.
                     image_B1HW = image_B1HW.to(self.device, non_blocking=True)
@@ -277,7 +284,7 @@ class TrainerACE:
 
                     # Compute image features.
                     with autocast(enabled=self.options.use_half):
-                        features_BCHW = self.regressor.get_features(image_B1HW)
+                        semi, features_BCHW = self.regressor.get_features(image_B1HW)
 
                     # Dimensions after the network's downsampling.
                     B, C, H, W = features_BCHW.shape
@@ -285,6 +292,31 @@ class TrainerACE:
                     # The image_mask needs to be downsampled to the actual output resolution and cast to bool.
                     image_mask_B1HW = TF.resize(image_mask_B1HW, [H, W], interpolation=TF.InterpolationMode.NEAREST)
                     image_mask_B1HW = image_mask_B1HW.bool()
+
+                    semi = semi.data.cpu().numpy().squeeze()
+                    dense = np.exp(semi) # Softmax.
+                    dense = dense / (np.sum(dense, axis=0)+.00001) # Should sum to 1.
+                    # Remove dustbin.
+                    nodust = dense[:-1, :, :]
+                    # Reshape to get full resolution heatmap.
+                    _, _, imageH, imageW = image_B1HW.shape
+                    Hc = int(imageH / 8)
+                    Wc = int(imageW / 8)
+                    nodust = nodust.transpose(1, 2, 0)
+                    heatmap = np.reshape(nodust, [Hc, Wc, 8, 8])
+                    heatmap = np.transpose(heatmap, [0, 2, 1, 3])
+                    heatmap = np.reshape(heatmap, [Hc*8, Wc*8])
+                    ys, xs = np.where(heatmap >= 0.015)
+
+                    kpt_image_mask_B1HW = torch.zeros(image_mask_B1HW.shape, dtype=bool)
+                    annotated_image = image_B1HW.cpu().numpy().squeeze()
+                    for x, y in zip(xs, ys):
+                        kpt_image_mask_B1HW[0][0][y // 8][x // 8] = True
+                        cv2.circle(annotated_image, (x, y), 1, (0, 128, 0), 1)
+
+                    image_mask_B1HW = image_mask_B1HW & kpt_image_mask_B1HW.to(self.device)
+                    output_image_path = output_image_dir/ f"{image_fp[0].split('/')[-1]}"
+                    cv2.imwrite(output_image_path, annotated_image * 255)
 
                     # If the current mask has no valid pixels, continue.
                     if image_mask_B1HW.sum() == 0:

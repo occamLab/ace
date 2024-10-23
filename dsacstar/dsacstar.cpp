@@ -72,9 +72,12 @@ int dsacstar_rgb_forward(
 	float inlierAlpha,
 	float maxReproj,
 	int subSampling,
-	at::Tensor inlierMapOutSrc)
+	at::Tensor inlierMapOutSrc,
+	at::Tensor kptMaskSrc)
 {
 	ThreadRand::init();
+
+	dsacstar::kpts_t kptMask = kptMaskSrc.accessor<int, 2>();
 
 	// access to tensor objects
 	dsacstar::coord_t sceneCoordinates = 
@@ -106,6 +109,7 @@ int dsacstar_rgb_forward(
 
 	dsacstar::sampleHypotheses(
 		sceneCoordinates,
+		kptMask,
 		sampling,
 		camMat,
 		ransacHypotheses,
@@ -127,6 +131,7 @@ int dsacstar_rgb_forward(
 	for(unsigned h = 0; h < hypotheses.size(); h++)
     	reproErrs[h] = dsacstar::getReproErrs(
 		sceneCoordinates,
+		kptMask,
 		hypotheses[h], 
 		sampling, 
 		camMat,
@@ -136,7 +141,8 @@ int dsacstar_rgb_forward(
     // soft inlier counting
 	std::vector<double> scores = dsacstar::getHypScores(
     	reproErrs,
-    	inlierThreshold,
+  		kptMask,  	
+		inlierThreshold,
     	inlierAlpha);
 
 	std::cout << "Done in " << stopW.stop() / 1000 << "s." << std::endl;
@@ -159,6 +165,7 @@ int dsacstar_rgb_forward(
 
 	dsacstar::refineHyp(
 		sceneCoordinates,
+		kptMask,
 		reproErrs[hypIdx],
 		sampling,
 		camMat,

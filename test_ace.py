@@ -43,7 +43,7 @@ if __name__ == '__main__':
 
     parser.add_argument('network', type=Path, help='path to a network trained for the scene (just the head weights)')
 
-    parser.add_argument('--encoder_path', type=Path, default=Path(__file__).parent / "ace_encoder_pretrained.pt",
+    parser.add_argument('--encoder_path', type=Path, default=Path(__file__).parent / "superpoint_v1.pth",
                         help='file containing pre-trained encoder weights')
 
     parser.add_argument('--session', '-sid', default='',
@@ -210,14 +210,33 @@ if __name__ == '__main__':
 
             # Predict scene coordinates.
             with autocast(enabled=True):
-                scene_coordinates_B3HW = network(image_B1HW)
+                semi_BFHW, scene_coordinates_B3HW = network(image_B1HW)
 
             # We need them on the CPU to run RANSAC.
             scene_coordinates_B3HW = scene_coordinates_B3HW.float().cpu()
 
             # Each frame is processed independently.
-            for frame_idx, (scene_coordinates_3HW, gt_pose_44, intrinsics_33, frame_path) in enumerate(
-                    zip(scene_coordinates_B3HW, gt_pose_B44, intrinsics_B33, filenames)):
+            for frame_idx, (semi_FHW, scene_coordinates_3HW, gt_pose_44, intrinsics_33, frame_path) in enumerate(
+                    zip(semi_BFHW, scene_coordinates_B3HW, gt_pose_B44, intrinsics_B33, filenames)):
+
+                semi = semi_FHW.data.cpu().numpy().squeeze()
+                dense = np.exp(semi) # Softmax.
+                dense = dense / (np.sum(dense, axis=0)+.00001) # Should sum to 1.
+                # Remove dustbin.
+                nodust = dense[:-1, :, :]
+                # Reshape to get full resolution heatmap.
+                _, _, imageH, imageW = image_B1HW.shape
+                Hc = int(imageH / 8)
+                Wc = int(imageW / 8)
+                nodust = nodust.transpose(1, 2, 0)
+                heatmap = np.reshape(nodust, [Hc, Wc, 8, 8])
+                heatmap = np.transpose(heatmap, [0, 2, 1, 3])
+                heatmap = np.reshape(heatmap, [Hc*8, Wc*8])
+                ys, xs = np.where(heatmap >= .015)
+
+                kpt_mask = torch.zeros((scene_coordinates_3HW.shape[1], scene_coordinates_3HW.shape[2]), dtype=torch.int)
+                for x, y in zip(xs, ys):
+                    kpt_mask[y // 8][x // 8] = 1
 
                 # Extract focal length and principal point from the intrinsics matrix.
                 focal_length = intrinsics_33[0, 0].item()
@@ -245,7 +264,8 @@ if __name__ == '__main__':
                     opt.inlieralpha,
                     opt.maxpixelerror,
                     network.OUTPUT_SUBSAMPLE,
-                    inlier_map
+                    inlier_map,
+                    kpt_mask
                 )
                 
                 annotated_image = cv2.imread(frame_path)
@@ -258,6 +278,9 @@ if __name__ == '__main__':
                             circle_cen_y = int(y * downsampling_rate + downsampling_rate // 2)
                             cv2.circle(annotated_image, (circle_cen_x, circle_cen_y), int(downsampling_rate // 2), (203, 192, 255), 2)
                 
+                for x, y in zip(xs, ys):
+                    cv2.circle(annotated_image, (x, y), 1, (128, 0, 0), 1)
+
                 output_img_fp = str(annotation_output_dir / frame_path.split("/")[-1]).replace(".jpg", ".png")
                 cv2.imwrite(output_img_fp, annotated_image)
 

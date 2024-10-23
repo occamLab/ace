@@ -44,4 +44,6 @@ namespace dsacstar
 	typedef cv::Mat_<double> trans_t;
 	// ATen accessor type
 	typedef at::TensorAccessor<float, 4> coord_t;
+
+  typedef at::TensorAccessor<int, 2> kpts_t;
 }

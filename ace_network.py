@@ -11,52 +11,107 @@ import torch.nn.functional as F
 _logger = logging.getLogger(__name__)
 
 
-class Encoder(nn.Module):
+class SuperPointNet(torch.nn.Module):
+  """ Pytorch definition of SuperPoint Network. """
+  def __init__(self):
+    super(SuperPointNet, self).__init__()
+    self.relu = torch.nn.ReLU(inplace=True)
+    self.pool = torch.nn.MaxPool2d(kernel_size=2, stride=2)
+    c1, c2, c3, c4, c5, d1 = 64, 64, 128, 128, 256, 256
+    # Shared Encoder.
+    self.conv1a = torch.nn.Conv2d(1, c1, kernel_size=3, stride=1, padding=1)
+    self.conv1b = torch.nn.Conv2d(c1, c1, kernel_size=3, stride=1, padding=1)
+    self.conv2a = torch.nn.Conv2d(c1, c2, kernel_size=3, stride=1, padding=1)
+    self.conv2b = torch.nn.Conv2d(c2, c2, kernel_size=3, stride=1, padding=1)
+    self.conv3a = torch.nn.Conv2d(c2, c3, kernel_size=3, stride=1, padding=1)
+    self.conv3b = torch.nn.Conv2d(c3, c3, kernel_size=3, stride=1, padding=1)
+    self.conv4a = torch.nn.Conv2d(c3, c4, kernel_size=3, stride=1, padding=1)
+    self.conv4b = torch.nn.Conv2d(c4, c4, kernel_size=3, stride=1, padding=1)
+    # Detector Head.
+    self.convPa = torch.nn.Conv2d(c4, c5, kernel_size=3, stride=1, padding=1)
+    self.convPb = torch.nn.Conv2d(c5, 65, kernel_size=1, stride=1, padding=0)
+    # Descriptor Head.
+    self.convDa = torch.nn.Conv2d(c4, c5, kernel_size=3, stride=1, padding=1)
+    self.convDb = torch.nn.Conv2d(c5, d1, kernel_size=1, stride=1, padding=0)
+
+  def forward(self, x):
+    """ Forward pass that jointly computes unprocessed point and descriptor
+    tensors.
+    Input
+      x: Image pytorch tensor shaped N x 1 x H x W.
+    Output
+      semi: Output point pytorch tensor shaped N x 65 x H/8 x W/8.
+      desc: Output descriptor pytorch tensor shaped N x 256 x H/8 x W/8.
     """
-    FCN encoder, used to extract features from the input images.
+    # Shared Encoder.
+    x = self.relu(self.conv1a(x))
+    x = self.relu(self.conv1b(x))
+    x = self.pool(x)
+    x = self.relu(self.conv2a(x))
+    x = self.relu(self.conv2b(x))
+    x = self.pool(x)
+    x = self.relu(self.conv3a(x))
+    x = self.relu(self.conv3b(x))
+    x = self.pool(x)
+    x = self.relu(self.conv4a(x))
+    x = self.relu(self.conv4b(x))
+    # Detector Head.
+    cPa = self.relu(self.convPa(x))
+    semi = self.convPb(cPa)
+    # Descriptor Head.
+    cDa = self.relu(self.convDa(x))
+    desc = self.convDb(cDa)
+    dn = torch.norm(desc, p=2, dim=1) # Compute the norm.
+    desc = desc.div(torch.unsqueeze(dn, 1)) # Divide by norm to normalize.
+    return semi, desc
 
-    The number of output channels is configurable, the default used in the paper is 512.
-    """
 
-    def __init__(self, out_channels=512):
-        super(Encoder, self).__init__()
+# class Encoder(nn.Module):
+#     """
+#     FCN encoder, used to extract features from the input images.
 
-        self.out_channels = out_channels
+#     The number of output channels is configurable, the default used in the paper is 512.
+#     """
 
-        self.conv1 = nn.Conv2d(1, 32, 3, 1, 1)
-        self.conv2 = nn.Conv2d(32, 64, 3, 2, 1)
-        self.conv3 = nn.Conv2d(64, 128, 3, 2, 1)
-        self.conv4 = nn.Conv2d(128, 256, 3, 2, 1)
+#     def __init__(self, out_channels=512):
+#         super(Encoder, self).__init__()
 
-        self.res1_conv1 = nn.Conv2d(256, 256, 3, 1, 1)
-        self.res1_conv2 = nn.Conv2d(256, 256, 1, 1, 0)
-        self.res1_conv3 = nn.Conv2d(256, 256, 3, 1, 1)
+#         self.out_channels = out_channels
 
-        self.res2_conv1 = nn.Conv2d(256, 512, 3, 1, 1)
-        self.res2_conv2 = nn.Conv2d(512, 512, 1, 1, 0)
-        self.res2_conv3 = nn.Conv2d(512, self.out_channels, 3, 1, 1)
+#         self.conv1 = nn.Conv2d(1, 32, 3, 1, 1)
+#         self.conv2 = nn.Conv2d(32, 64, 3, 2, 1)
+#         self.conv3 = nn.Conv2d(64, 128, 3, 2, 1)
+#         self.conv4 = nn.Conv2d(128, 256, 3, 2, 1)
 
-        self.res2_skip = nn.Conv2d(256, self.out_channels, 1, 1, 0)
+#         self.res1_conv1 = nn.Conv2d(256, 256, 3, 1, 1)
+#         self.res1_conv2 = nn.Conv2d(256, 256, 1, 1, 0)
+#         self.res1_conv3 = nn.Conv2d(256, 256, 3, 1, 1)
 
-    def forward(self, x):
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
-        x = F.relu(self.conv3(x))
-        res = F.relu(self.conv4(x))
+#         self.res2_conv1 = nn.Conv2d(256, 512, 3, 1, 1)
+#         self.res2_conv2 = nn.Conv2d(512, 512, 1, 1, 0)
+#         self.res2_conv3 = nn.Conv2d(512, self.out_channels, 3, 1, 1)
 
-        x = F.relu(self.res1_conv1(res))
-        x = F.relu(self.res1_conv2(x))
-        x = F.relu(self.res1_conv3(x))
+#         self.res2_skip = nn.Conv2d(256, self.out_channels, 1, 1, 0)
 
-        res = res + x
+#     def forward(self, x):
+#         x = F.relu(self.conv1(x))
+#         x = F.relu(self.conv2(x))
+#         x = F.relu(self.conv3(x))
+#         res = F.relu(self.conv4(x))
 
-        x = F.relu(self.res2_conv1(res))
-        x = F.relu(self.res2_conv2(x))
-        x = F.relu(self.res2_conv3(x))
+#         x = F.relu(self.res1_conv1(res))
+#         x = F.relu(self.res1_conv2(x))
+#         x = F.relu(self.res1_conv3(x))
 
-        x = self.res2_skip(res) + x
+#         res = res + x
 
-        return x
+#         x = F.relu(self.res2_conv1(res))
+#         x = F.relu(self.res2_conv2(x))
+#         x = F.relu(self.res2_conv3(x))
+
+#         x = self.res2_skip(res) + x
+
+#         return x
 
 
 class Head(nn.Module):
@@ -171,7 +226,8 @@ class Regressor(nn.Module):
 
         self.feature_dim = num_encoder_features
 
-        self.encoder = Encoder(out_channels=self.feature_dim)
+        # self.encoder = Encoder(out_channels=self.feature_dim)
+        self.encoder = SuperPointNet()
         self.heads = Head(mean, num_head_blocks, use_homogeneous, in_channels=self.feature_dim)
 
     @classmethod
@@ -186,7 +242,8 @@ class Regressor(nn.Module):
         """
 
         # Number of output channels of the last encoder layer.
-        num_encoder_features = encoder_state_dict['res2_conv3.weight'].shape[0]
+        # num_encoder_features = encoder_state_dict['res2_conv3.weight'].shape[0]
+        num_encoder_features = 256
 
         # Create a regressor.
         _logger.info(f"Creating Regressor using pretrained encoder with {num_encoder_features} feature size.")
@@ -216,7 +273,8 @@ class Regressor(nn.Module):
         use_homogeneous = state_dict["heads.fc3.weight"].shape[0] == 4
 
         # Number of output channels of the last encoder layer.
-        num_encoder_features = state_dict['encoder.res2_conv3.weight'].shape[0]
+        # num_encoder_features = state_dict['encoder.res2_conv3.weight'].shape[0]
+        num_encoder_features = 256
 
         # Create a regressor.
         _logger.info(f"Creating regressor from pretrained state_dict:"
@@ -278,5 +336,5 @@ class Regressor(nn.Module):
         """
         Forward pass.
         """
-        features = self.get_features(inputs)
-        return self.get_scene_coordinates(features)
+        semi, features = self.get_features(inputs)
+        return semi, self.get_scene_coordinates(features)

@@ -28,7 +28,7 @@ if __name__ == '__main__':
     parser.add_argument('output_map_file', type=Path,
                         help='target file for the trained network')
 
-    parser.add_argument('--encoder_path', type=Path, default=Path(__file__).parent / "ace_encoder_pretrained.pt",
+    parser.add_argument('--encoder_path', type=Path, default=Path(__file__).parent / "superpoint_v1.pth",
                         help='file containing pre-trained encoder weights')
 
     parser.add_argument('--num_head_blocks', type=int, default=1,
@@ -43,7 +43,7 @@ if __name__ == '__main__':
     parser.add_argument('--training_buffer_size', type=int, default=16000000,
                         help='number of patches in the training buffer')
 
-    parser.add_argument('--samples_per_image', type=int, default=4096,
+    parser.add_argument('--samples_per_image', type=int, default=8192,
                         help='number of patches drawn from each image when creating the buffer')
 
     parser.add_argument('--batch_size', type=int, default=5120,
@@ -67,7 +67,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_homogeneous', type=_strtobool, default=True,
                         help='train with half precision')
 
-    parser.add_argument('--use_aug', type=_strtobool, default=True,
+    parser.add_argument('--use_aug', type=_strtobool, default=False,
                         help='Use any augmentation.')
 
     parser.add_argument('--aug_rotation', type=int, default=15,

@@ -134,6 +134,7 @@ namespace dsacstar
 	*/
 	inline void sampleHypotheses(
 		dsacstar::coord_t& sceneCoordinates,
+		dsacstar::kpts_t& kptMask,
 		const cv::Mat_<cv::Point2i>& sampling,
 		const cv::Mat_<float>& camMat,
 		int ransacHypotheses,
@@ -170,6 +171,19 @@ namespace dsacstar
 				// 2D location in the subsampled image
 				int x = irand(0, imW);
 				int y = irand(0, imH);
+				int num_iterations = 0;
+
+				while (kptMask[y][x] == 0)
+				{
+					x = irand(0, imW);
+					y = irand(0, imH);
+					num_iterations++;
+
+					if (num_iterations > 1000)
+					{
+						break;
+					}
+				}
 
 				// 2D location in the original RGB image
 				imgPts[h].push_back(sampling(y, x)); 
@@ -315,10 +329,12 @@ namespace dsacstar
 	*/
 	inline std::vector<double> getHypScores(
 		const std::vector<cv::Mat_<float>>& reproErrs,
+		dsacstar::kpts_t& kptMask,
 		float inlierThreshold,
 		float inlierAlpha)
 	{
 		std::vector<double> scores(reproErrs.size(), 0);
+		std::vector<int> numPoints(reproErrs.size(), 0);
 
 		// beta parameter for soft inlier counting
 		float inlierBeta = 5 / inlierThreshold;
@@ -328,15 +344,18 @@ namespace dsacstar
 		for(int x = 0; x < reproErrs[h].cols; x++)
 		for(int y = 0; y < reproErrs[h].rows; y++)
 		{
-			double softThreshold = inlierBeta * (reproErrs[h](y, x) - inlierThreshold);
-			softThreshold = 1 / (1+std::exp(-softThreshold));
-			scores[h] += 1 - softThreshold;
+			if (kptMask[y][x] != 0) {
+				double softThreshold = inlierBeta * (reproErrs[h](y, x) - inlierThreshold);
+				softThreshold = 1 / (1+std::exp(-softThreshold));
+				scores[h] += 1 - softThreshold;
+				numPoints[h] += 1;
+			}
 		}
 
 		#pragma omp parallel for
 		for(unsigned h = 0; h < reproErrs.size(); h++)
 		{
-			scores[h] *= inlierAlpha / reproErrs[h].cols / reproErrs[h].rows;
+			scores[h] *= inlierAlpha / numPoints[h];
 		}
 
 		return scores;
@@ -355,6 +374,7 @@ namespace dsacstar
 	*/
 	cv::Mat_<float> getReproErrs(
 		dsacstar::coord_t& sceneCoordinates,
+		dsacstar::kpts_t& kptMask,
 		const dsacstar::pose_t& hyp,
 		const cv::Mat_<cv::Point2i>& sampling,
 		const cv::Mat& camMat,
@@ -374,17 +394,20 @@ namespace dsacstar
 		// collect 2D-3D correspondences
 		for(int x = 0; x < sampling.cols; x++)
 		for(int y = 0; y < sampling.rows; y++)
-		{		
-			// get 2D location of the original RGB frame
-			cv::Point2f pt2D(sampling(y, x).x, sampling(y, x).y);
+		{
+			if (kptMask[y][x] != 0)
+			{
+				// get 2D location of the original RGB frame
+				cv::Point2f pt2D(sampling(y, x).x, sampling(y, x).y);
 
-			// get associated 3D object coordinate prediction
-			points3D.push_back(cv::Point3f(
-				sceneCoordinates[batchIdx][0][y][x],
-				sceneCoordinates[batchIdx][1][y][x],
-				sceneCoordinates[batchIdx][2][y][x]));
-			points2D.push_back(pt2D);
-			sources2D.push_back(cv::Point2f(x, y));
+				// get associated 3D object coordinate prediction
+				points3D.push_back(cv::Point3f(
+					sceneCoordinates[batchIdx][0][y][x],
+					sceneCoordinates[batchIdx][1][y][x],
+					sceneCoordinates[batchIdx][2][y][x]));
+				points2D.push_back(pt2D);
+				sources2D.push_back(cv::Point2f(x, y));
+			}
 		}
 
 		if(points3D.empty()) return reproErrs;
@@ -521,6 +544,7 @@ namespace dsacstar
 	*/
 	inline void refineHyp(
 		dsacstar::coord_t& sceneCoordinates,
+		dsacstar::kpts_t& kptMask,
 		const cv::Mat_<float>& reproErrs,
 		const cv::Mat_<cv::Point2i>& sampling,
 		const cv::Mat_<float>& camMat,
@@ -547,7 +571,7 @@ namespace dsacstar
 			for(int x = 0; x < sampling.cols; x++)
 			for(int y = 0; y < sampling.rows; y++)
 			{
-				if(localReproErrs(y, x) < inlierThreshold)
+				if(kptMask[y][x] == 1 && localReproErrs(y, x) < inlierThreshold)
 				{
 					localImgPts.push_back(sampling(y, x));
 					localObjPts.push_back(cv::Point3f(
@@ -588,6 +612,7 @@ namespace dsacstar
 
 			localReproErrs = dsacstar::getReproErrs(
 				sceneCoordinates,
+				kptMask,
 				hypothesis, 
 				sampling, 
 				camMat,

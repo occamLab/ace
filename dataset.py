@@ -166,10 +166,10 @@ class CamLocDataset(Dataset):
                 # transforms.Resize(self.image_height),
                 transforms.Grayscale(),
                 transforms.ToTensor(),
-                transforms.Normalize(
-                    mean=[0.4],  # statistics calculated over 7scenes training set, should generalize fairly well
-                    std=[0.25]
-                ),
+                # transforms.Normalize(
+                #     mean=[0.4],  # statistics calculated over 7scenes training set, should generalize fairly well
+                #     std=[0.25]
+                # ),
             ])
 
         # We use this to iterate over all frames. If clustering is enabled this is used to filter them.
@@ -339,12 +339,15 @@ class CamLocDataset(Dataset):
         return mean_cam_center
 
     def _load_image(self, idx):
+        # grayim = cv2.imread(self.rgb_files[idx])
+        # grayim = (grayim.astype('float32') / 255.)
         image = io.imread(self.rgb_files[idx])
 
         if len(image.shape) < 3:
             # Convert to RGB if needed.
             image = color.gray2rgb(image)
 
+        # return grayim
         return image
 
     def _load_pose(self, idx):
