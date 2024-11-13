@@ -238,6 +238,14 @@ if __name__ == '__main__':
                 for x, y in zip(xs, ys):
                     kpt_mask[y // 8][x // 8] = 1
 
+                sift_mask = torch.zeros((scene_coordinates_3HW.shape[1], scene_coordinates_3HW.shape[2]), dtype=torch.int)
+                sift = cv2.SIFT_create()
+                kpts = sift.detect((image_B1HW.cpu().numpy().squeeze() * 255).astype(np.uint8), None)
+                for sift_kpt in kpts:
+                    kpt_x, kpt_y = sift_kpt.pt
+                    sift_mask[int(kpt_y) // 8][int(kpt_x) // 8] = True
+                kpt_mask = kpt_mask & sift_mask
+
                 # Extract focal length and principal point from the intrinsics matrix.
                 focal_length = intrinsics_33[0, 0].item()
                 ppX = intrinsics_33[0, 2].item()

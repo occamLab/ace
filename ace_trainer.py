@@ -308,13 +308,21 @@ class TrainerACE:
                     heatmap = np.reshape(heatmap, [Hc*8, Wc*8])
                     ys, xs = np.where(heatmap >= 0.015)
 
-                    kpt_image_mask_B1HW = torch.zeros(image_mask_B1HW.shape, dtype=bool)
+                    spt_kpt_image_mask_B1HW = torch.zeros(image_mask_B1HW.shape, dtype=bool)
                     annotated_image = image_B1HW.cpu().numpy().squeeze()
                     for x, y in zip(xs, ys):
-                        kpt_image_mask_B1HW[0][0][y // 8][x // 8] = True
-                        cv2.circle(annotated_image, (x, y), 1, (0, 128, 0), 1)
+                        spt_kpt_image_mask_B1HW[0][0][y // 8][x // 8] = True
+                        cv2.circle(annotated_image, (x, y), 4, (0, 1, 0), -1, lineType=16)
 
-                    image_mask_B1HW = image_mask_B1HW & kpt_image_mask_B1HW.to(self.device)
+                    sift_kpt_image_mask_B1HW = torch.zeros(image_mask_B1HW.shape, dtype=bool)
+                    sift = cv2.SIFT_create()
+                    kpts = sift.detect((image_B1HW.cpu().numpy().squeeze() * 255).astype(np.uint8), None)
+                    for sift_kpt in kpts:
+                        kpt_x, kpt_y = sift_kpt.pt
+                        sift_kpt_image_mask_B1HW[0][0][int(kpt_y) // 8][int(kpt_x) // 8] = True
+                        cv2.circle(annotated_image, (int(kpt_x), int(kpt_y)), 4, (1, 0, 0), -1, lineType=16)
+
+                    image_mask_B1HW = image_mask_B1HW & spt_kpt_image_mask_B1HW.to(self.device) & sift_kpt_image_mask_B1HW.to(self.device)
                     output_image_path = output_image_dir/ f"{image_fp[0].split('/')[-1]}"
                     cv2.imwrite(output_image_path, annotated_image * 255)
 
