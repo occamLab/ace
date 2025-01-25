@@ -12,30 +12,46 @@ from skimage import io
 
 # setup individual scene IDs and their download location
 scenes = [
-    'https://www.repository.cam.ac.uk/bitstream/handle/1810/251342/KingsCollege.zip',
-    'https://www.repository.cam.ac.uk/bitstream/handle/1810/251340/OldHospital.zip',
-    'https://www.repository.cam.ac.uk/bitstream/handle/1810/251336/ShopFacade.zip',
-    'https://www.repository.cam.ac.uk/bitstream/handle/1810/251294/StMarysChurch.zip',
-    'https://www.repository.cam.ac.uk/bitstream/handle/1810/251291/GreatCourt.zip',
+    "https://www.repository.cam.ac.uk/bitstream/handle/1810/251342/KingsCollege.zip",
+    "https://www.repository.cam.ac.uk/bitstream/handle/1810/251340/OldHospital.zip",
+    "https://www.repository.cam.ac.uk/bitstream/handle/1810/251336/ShopFacade.zip",
+    "https://www.repository.cam.ac.uk/bitstream/handle/1810/251294/StMarysChurch.zip",
+    "https://www.repository.cam.ac.uk/bitstream/handle/1810/251291/GreatCourt.zip",
 ]
 
 target_height = 480  # rescale images
-nn_subsampling = 8  # sub sampling of our CNN architecture, for size of the initalization targets
+nn_subsampling = (
+    8  # sub sampling of our CNN architecture, for size of the initalization targets
+)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description='Download and setup the Cambridge dataset.',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        description="Download and setup the Cambridge dataset.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
 
-    parser.add_argument('--init', type=str, choices=['none', 'sfm'], default='none',
-                        help='none: no initialisation targets for scene coordinates; sfm: scene coordinate targets by rendering the SfM point cloud')
+    parser.add_argument(
+        "--init",
+        type=str,
+        choices=["none", "sfm"],
+        default="none",
+        help="none: no initialisation targets for scene coordinates; sfm: scene coordinate targets by rendering the SfM point cloud",
+    )
 
     opt = parser.parse_args()
 
-    print("\n###############################################################################")
-    print("# Please make sure to check this dataset's license before using it!           #")
-    print("# https://www.repository.cam.ac.uk/items/53788265-cb98-42ee-b85b-7a0cbc8eddb3 #")
-    print("###############################################################################\n\n")
+    print(
+        "\n###############################################################################"
+    )
+    print(
+        "# Please make sure to check this dataset's license before using it!           #"
+    )
+    print(
+        "# https://www.repository.cam.ac.uk/items/53788265-cb98-42ee-b85b-7a0cbc8eddb3 #"
+    )
+    print(
+        "###############################################################################\n\n"
+    )
 
     license_response = input('Please confirm with "yes" or abort. ')
     if not (license_response == "yes" or license_response == "y"):
@@ -43,21 +59,20 @@ if __name__ == '__main__':
         exit()
 
     for scene in scenes:
-
-        scene_file = scene.split('/')[-1]
+        scene_file = scene.split("/")[-1]
         scene_name = scene_file[:-4]
 
         print("===== Processing " + scene_name + " ===================")
 
         print("Downloading and unzipping data...")
-        os.system('wget ' + scene)
-        os.system('unzip ' + scene_file)
-        os.system('rm ' + scene_file)
-        os.system('mv ' + scene_name + ' Cambridge_' + scene_name)
-        os.chdir('Cambridge_' + scene_name)
+        os.system("wget " + scene)
+        os.system("unzip " + scene_file)
+        os.system("rm " + scene_file)
+        os.system("mv " + scene_name + " Cambridge_" + scene_name)
+        os.chdir("Cambridge_" + scene_name)
 
-        modes = ['train', 'test']
-        input_file = 'reconstruction.nvm'
+        modes = ["train", "test"]
+        input_file = "reconstruction.nvm"
 
         print("Loading SfM reconstruction...")
 
@@ -68,8 +83,7 @@ if __name__ == '__main__':
         num_cams = int(reconstruction[2])
         num_pts = int(reconstruction[num_cams + 4])
 
-        if opt.init == 'sfm':
-
+        if opt.init == "sfm":
             # read points
             pts_dict = {}
             for cam_idx in range(0, num_cams):
@@ -79,7 +93,6 @@ if __name__ == '__main__':
             pts_end = pts_start + num_pts
 
             while pt < pts_end:
-
                 pt_list = reconstruction[pt].split()
                 pt_3D = [float(x) for x in pt_list[0:3]]
                 pt_3D.append(1.0)
@@ -90,26 +103,27 @@ if __name__ == '__main__':
 
                 pt += 1
 
-        print("Reconstruction contains %d cameras and %d 3D points." % (num_cams, num_pts))
+        print(
+            "Reconstruction contains %d cameras and %d 3D points." % (num_cams, num_pts)
+        )
 
         for mode in modes:
-
             print("Converting " + mode + " data...")
 
-            img_output_folder = mode + '/rgb/'
-            cal_output_folder = mode + '/calibration/'
-            pose_output_folder = mode + '/poses/'
+            img_output_folder = mode + "/rgb/"
+            cal_output_folder = mode + "/calibration/"
+            pose_output_folder = mode + "/poses/"
 
             dutil.mkdir(img_output_folder)
             dutil.mkdir(cal_output_folder)
             dutil.mkdir(pose_output_folder)
 
-            if opt.init != 'none':
-                target_output_folder = mode + '/init/'
+            if opt.init != "none":
+                target_output_folder = mode + "/init/"
                 dutil.mkdir(target_output_folder)
 
             # get list of images for current mode (train vs. test)
-            image_list = 'dataset_' + mode + '.txt'
+            image_list = "dataset_" + mode + ".txt"
 
             f = open(image_list)
             camera_list = f.readlines()
@@ -119,13 +133,18 @@ if __name__ == '__main__':
             image_list = [camera.split()[0] for camera in camera_list]
 
             for cam_idx in range(num_cams):
-
                 print("Processing camera %d of %d." % (cam_idx, num_cams))
                 image_file = reconstruction[3 + cam_idx].split()[0]
-                image_file = image_file[:-3] + 'png'
+                image_file = image_file[:-3] + "png"
 
                 if image_file not in image_list:
-                    print("Skipping image " + image_file + ". Not part of set: " + mode + ".")
+                    print(
+                        "Skipping image "
+                        + image_file
+                        + ". Not part of set: "
+                        + mode
+                        + "."
+                    )
                     continue
 
                 image_idx = image_list.index(image_file)
@@ -148,10 +167,14 @@ if __name__ == '__main__':
                 cam_trans = [float(r) for r in camera[1:4]]
                 cam_trans = np.asarray([cam_trans])
                 cam_trans = np.transpose(cam_trans)
-                cam_trans = - np.matmul(cam_rot, cam_trans)
+                cam_trans = -np.matmul(cam_rot, cam_trans)
 
                 if np.absolute(cam_trans).max() > 10000:
-                    print("Skipping image " + image_file + ". Extremely large translation. Outlier?")
+                    print(
+                        "Skipping image "
+                        + image_file
+                        + ". Extremely large translation. Outlier?"
+                    )
                     print(cam_trans)
                     continue
 
@@ -163,7 +186,7 @@ if __name__ == '__main__':
 
                 # load image
                 image = io.imread(image_file)
-                image_file = image_file.replace('/', '_')
+                image_file = image_file.replace("/", "_")
 
                 img_aspect = image.shape[0] / image.shape[1]
 
@@ -185,23 +208,54 @@ if __name__ == '__main__':
                 image = cv.resize(image, (img_w, img_h))
                 io.imsave(img_output_folder + image_file, image)
 
-                with open(cal_output_folder + image_file[:-3] + 'txt', 'w') as f:
+                with open(cal_output_folder + image_file[:-3] + "txt", "w") as f:
                     f.write(str(focal_length * img_scale))
 
                 inv_cam_pose = cam_pose.inverse()
 
-                with open(pose_output_folder + image_file[:-3] + 'txt', 'w') as f:
-                    f.write(str(float(inv_cam_pose[0, 0])) + ' ' + str(float(inv_cam_pose[0, 1])) + ' ' + str(
-                        float(inv_cam_pose[0, 2])) + ' ' + str(float(inv_cam_pose[0, 3])) + '\n')
-                    f.write(str(float(inv_cam_pose[1, 0])) + ' ' + str(float(inv_cam_pose[1, 1])) + ' ' + str(
-                        float(inv_cam_pose[1, 2])) + ' ' + str(float(inv_cam_pose[1, 3])) + '\n')
-                    f.write(str(float(inv_cam_pose[2, 0])) + ' ' + str(float(inv_cam_pose[2, 1])) + ' ' + str(
-                        float(inv_cam_pose[2, 2])) + ' ' + str(float(inv_cam_pose[2, 3])) + '\n')
-                    f.write(str(float(inv_cam_pose[3, 0])) + ' ' + str(float(inv_cam_pose[3, 1])) + ' ' + str(
-                        float(inv_cam_pose[3, 2])) + ' ' + str(float(inv_cam_pose[3, 3])) + '\n')
+                with open(pose_output_folder + image_file[:-3] + "txt", "w") as f:
+                    f.write(
+                        str(float(inv_cam_pose[0, 0]))
+                        + " "
+                        + str(float(inv_cam_pose[0, 1]))
+                        + " "
+                        + str(float(inv_cam_pose[0, 2]))
+                        + " "
+                        + str(float(inv_cam_pose[0, 3]))
+                        + "\n"
+                    )
+                    f.write(
+                        str(float(inv_cam_pose[1, 0]))
+                        + " "
+                        + str(float(inv_cam_pose[1, 1]))
+                        + " "
+                        + str(float(inv_cam_pose[1, 2]))
+                        + " "
+                        + str(float(inv_cam_pose[1, 3]))
+                        + "\n"
+                    )
+                    f.write(
+                        str(float(inv_cam_pose[2, 0]))
+                        + " "
+                        + str(float(inv_cam_pose[2, 1]))
+                        + " "
+                        + str(float(inv_cam_pose[2, 2]))
+                        + " "
+                        + str(float(inv_cam_pose[2, 3]))
+                        + "\n"
+                    )
+                    f.write(
+                        str(float(inv_cam_pose[3, 0]))
+                        + " "
+                        + str(float(inv_cam_pose[3, 1]))
+                        + " "
+                        + str(float(inv_cam_pose[3, 2]))
+                        + " "
+                        + str(float(inv_cam_pose[3, 3]))
+                        + "\n"
+                    )
 
-                if opt.init == 'sfm':
-
+                if opt.init == "sfm":
                     # load 3D points from reconstruction
                     pts_3D = torch.tensor(pts_dict[cam_idx])
 
@@ -212,7 +266,6 @@ if __name__ == '__main__':
                     conflict = 0
 
                     for pt_idx in range(0, pts_3D.size(0)):
-
                         scene_pt = pts_3D[pt_idx]
                         scene_pt = scene_pt.unsqueeze(0)
                         scene_pt = scene_pt.transpose(0, 1)
@@ -220,7 +273,9 @@ if __name__ == '__main__':
                         # scene to camera coordinates
                         cam_pt = torch.mm(cam_pose, scene_pt)
                         # projection to image
-                        img_pt = cam_pt[0:2, 0] * focal_length / cam_pt[2, 0] * out_scale
+                        img_pt = (
+                            cam_pt[0:2, 0] * focal_length / cam_pt[2, 0] * out_scale
+                        )
 
                         y = img_pt[1] + out_h / 2
                         x = img_pt[0] + out_w / 2
@@ -228,13 +283,17 @@ if __name__ == '__main__':
                         x = int(torch.clamp(x, min=0, max=out_tensor.size(2) - 1))
                         y = int(torch.clamp(y, min=0, max=out_tensor.size(1) - 1))
 
-                        if cam_pt[2, 0] > 1000:  # filter some outlier points (large depth)
+                        if (
+                            cam_pt[2, 0] > 1000
+                        ):  # filter some outlier points (large depth)
                             continue
 
                         if out_zbuffer[y, x] == 0 or out_zbuffer[y, x] > cam_pt[2, 0]:
                             out_zbuffer[y, x] = cam_pt[2, 0]
                             out_tensor[:, y, x] = pts_3D[pt_idx, 0:3]
 
-                    torch.save(out_tensor, target_output_folder + image_file[:-4] + '.dat')
+                    torch.save(
+                        out_tensor, target_output_folder + image_file[:-4] + ".dat"
+                    )
 
-        os.chdir('..')
+        os.chdir("..")

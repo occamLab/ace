@@ -14,14 +14,23 @@ from dataset import CamLocDataset
 
 _logger = logging.getLogger(__name__)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser(
-        description='Compute metrics for a pre-existing poses file.',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        description="Compute metrics for a pre-existing poses file.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
 
-    parser.add_argument('scene', type=Path, help='name of a scene in the dataset folder, e.g. Cambridge_GreatCourt')
-    parser.add_argument('poses_file', type=Path, help='file containing poses estimated for the input scene')
+    parser.add_argument(
+        "scene",
+        type=Path,
+        help="name of a scene in the dataset folder, e.g. Cambridge_GreatCourt",
+    )
+    parser.add_argument(
+        "poses_file",
+        type=Path,
+        help="file containing poses estimated for the input scene",
+    )
 
     opt = parser.parse_args()
 
@@ -33,7 +42,7 @@ if __name__ == '__main__':
     _logger.info(f"Loaded scene with {len(testset)} frames.")
 
     # load pre-existing poses
-    with opt.poses_file.open('r') as f:
+    with opt.poses_file.open("r") as f:
         frame_poses = f.readlines()
     _logger.info(f"Loaded {len(frame_poses)} poses.")
 
@@ -83,7 +92,9 @@ if __name__ == '__main__':
         r_err = cv2.Rodrigues(r_err)[0]
         r_err = np.linalg.norm(r_err) * 180 / math.pi
 
-        _logger.info("Rotation Error: %.2fdeg, Translation Error: %.1fcm" % (r_err, t_err * 100))
+        _logger.info(
+            "Rotation Error: %.2fdeg, Translation Error: %.1fcm" % (r_err, t_err * 100)
+        )
 
         # Save the errors.
         rErrs.append(r_err)
@@ -118,10 +129,10 @@ if __name__ == '__main__':
     _logger.info("===================================================")
     _logger.info("Test complete.")
 
-    _logger.info('Accuracy:')
-    _logger.info(f'\t10cm/5deg: {pct10_5:.1f}%')
-    _logger.info(f'\t5cm/5deg: {pct5:.1f}%')
-    _logger.info(f'\t2cm/2deg: {pct2:.1f}%')
-    _logger.info(f'\t1cm/1deg: {pct1:.1f}%')
+    _logger.info("Accuracy:")
+    _logger.info(f"\t10cm/5deg: {pct10_5:.1f}%")
+    _logger.info(f"\t5cm/5deg: {pct5:.1f}%")
+    _logger.info(f"\t2cm/2deg: {pct2:.1f}%")
+    _logger.info(f"\t1cm/1deg: {pct1:.1f}%")
 
     _logger.info(f"Median Error: {median_rErr:.1f}deg, {median_tErr:.1f}cm")

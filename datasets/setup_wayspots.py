@@ -2,9 +2,11 @@
 
 import os
 
-if __name__ == '__main__':
-    dataset_url = 'https://storage.googleapis.com/niantic-lon-static/research/ace/wayspots.tar.gz'
-    dataset_file = dataset_url.split('/')[-1]
+if __name__ == "__main__":
+    dataset_url = (
+        "https://storage.googleapis.com/niantic-lon-static/research/ace/wayspots.tar.gz"
+    )
+    dataset_file = dataset_url.split("/")[-1]
 
     print("\n#####################################################################")
     print("# Please make sure to check this dataset's license before using it! #")
@@ -17,7 +19,7 @@ if __name__ == '__main__':
         exit()
 
     print("Downloading and unzipping data...")
-    os.system('wget ' + dataset_url)
-    os.system('tar -xzf ' + dataset_file)
-    os.system('rm ' + dataset_file)
+    os.system("wget " + dataset_url)
+    os.system("tar -xzf " + dataset_file)
+    os.system("rm " + dataset_file)
     print("Done.")

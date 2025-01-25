@@ -12,58 +12,59 @@ _logger = logging.getLogger(__name__)
 
 
 class SuperPointNet(torch.nn.Module):
-  """ Pytorch definition of SuperPoint Network. """
-  def __init__(self):
-    super(SuperPointNet, self).__init__()
-    self.relu = torch.nn.ReLU(inplace=True)
-    self.pool = torch.nn.MaxPool2d(kernel_size=2, stride=2)
-    c1, c2, c3, c4, c5, d1 = 64, 64, 128, 128, 256, 256
-    # Shared Encoder.
-    self.conv1a = torch.nn.Conv2d(1, c1, kernel_size=3, stride=1, padding=1)
-    self.conv1b = torch.nn.Conv2d(c1, c1, kernel_size=3, stride=1, padding=1)
-    self.conv2a = torch.nn.Conv2d(c1, c2, kernel_size=3, stride=1, padding=1)
-    self.conv2b = torch.nn.Conv2d(c2, c2, kernel_size=3, stride=1, padding=1)
-    self.conv3a = torch.nn.Conv2d(c2, c3, kernel_size=3, stride=1, padding=1)
-    self.conv3b = torch.nn.Conv2d(c3, c3, kernel_size=3, stride=1, padding=1)
-    self.conv4a = torch.nn.Conv2d(c3, c4, kernel_size=3, stride=1, padding=1)
-    self.conv4b = torch.nn.Conv2d(c4, c4, kernel_size=3, stride=1, padding=1)
-    # Detector Head.
-    self.convPa = torch.nn.Conv2d(c4, c5, kernel_size=3, stride=1, padding=1)
-    self.convPb = torch.nn.Conv2d(c5, 65, kernel_size=1, stride=1, padding=0)
-    # Descriptor Head.
-    self.convDa = torch.nn.Conv2d(c4, c5, kernel_size=3, stride=1, padding=1)
-    self.convDb = torch.nn.Conv2d(c5, d1, kernel_size=1, stride=1, padding=0)
+    """Pytorch definition of SuperPoint Network."""
 
-  def forward(self, x):
-    """ Forward pass that jointly computes unprocessed point and descriptor
-    tensors.
-    Input
-      x: Image pytorch tensor shaped N x 1 x H x W.
-    Output
-      semi: Output point pytorch tensor shaped N x 65 x H/8 x W/8.
-      desc: Output descriptor pytorch tensor shaped N x 256 x H/8 x W/8.
-    """
-    # Shared Encoder.
-    x = self.relu(self.conv1a(x))
-    x = self.relu(self.conv1b(x))
-    x = self.pool(x)
-    x = self.relu(self.conv2a(x))
-    x = self.relu(self.conv2b(x))
-    x = self.pool(x)
-    x = self.relu(self.conv3a(x))
-    x = self.relu(self.conv3b(x))
-    x = self.pool(x)
-    x = self.relu(self.conv4a(x))
-    x = self.relu(self.conv4b(x))
-    # Detector Head.
-    cPa = self.relu(self.convPa(x))
-    semi = self.convPb(cPa)
-    # Descriptor Head.
-    cDa = self.relu(self.convDa(x))
-    desc = self.convDb(cDa)
-    dn = torch.norm(desc, p=2, dim=1) # Compute the norm.
-    desc = desc.div(torch.unsqueeze(dn, 1)) # Divide by norm to normalize.
-    return semi, desc
+    def __init__(self):
+        super(SuperPointNet, self).__init__()
+        self.relu = torch.nn.ReLU(inplace=True)
+        self.pool = torch.nn.MaxPool2d(kernel_size=2, stride=2)
+        c1, c2, c3, c4, c5, d1 = 64, 64, 128, 128, 256, 256
+        # Shared Encoder.
+        self.conv1a = torch.nn.Conv2d(1, c1, kernel_size=3, stride=1, padding=1)
+        self.conv1b = torch.nn.Conv2d(c1, c1, kernel_size=3, stride=1, padding=1)
+        self.conv2a = torch.nn.Conv2d(c1, c2, kernel_size=3, stride=1, padding=1)
+        self.conv2b = torch.nn.Conv2d(c2, c2, kernel_size=3, stride=1, padding=1)
+        self.conv3a = torch.nn.Conv2d(c2, c3, kernel_size=3, stride=1, padding=1)
+        self.conv3b = torch.nn.Conv2d(c3, c3, kernel_size=3, stride=1, padding=1)
+        self.conv4a = torch.nn.Conv2d(c3, c4, kernel_size=3, stride=1, padding=1)
+        self.conv4b = torch.nn.Conv2d(c4, c4, kernel_size=3, stride=1, padding=1)
+        # Detector Head.
+        self.convPa = torch.nn.Conv2d(c4, c5, kernel_size=3, stride=1, padding=1)
+        self.convPb = torch.nn.Conv2d(c5, 65, kernel_size=1, stride=1, padding=0)
+        # Descriptor Head.
+        self.convDa = torch.nn.Conv2d(c4, c5, kernel_size=3, stride=1, padding=1)
+        self.convDb = torch.nn.Conv2d(c5, d1, kernel_size=1, stride=1, padding=0)
+
+    def forward(self, x):
+        """Forward pass that jointly computes unprocessed point and descriptor
+        tensors.
+        Input
+          x: Image pytorch tensor shaped N x 1 x H x W.
+        Output
+          semi: Output point pytorch tensor shaped N x 65 x H/8 x W/8.
+          desc: Output descriptor pytorch tensor shaped N x 256 x H/8 x W/8.
+        """
+        # Shared Encoder.
+        x = self.relu(self.conv1a(x))
+        x = self.relu(self.conv1b(x))
+        x = self.pool(x)
+        x = self.relu(self.conv2a(x))
+        x = self.relu(self.conv2b(x))
+        x = self.pool(x)
+        x = self.relu(self.conv3a(x))
+        x = self.relu(self.conv3b(x))
+        x = self.pool(x)
+        x = self.relu(self.conv4a(x))
+        x = self.relu(self.conv4b(x))
+        # Detector Head.
+        cPa = self.relu(self.convPa(x))
+        semi = self.convPb(cPa)
+        # Descriptor Head.
+        cDa = self.relu(self.convDa(x))
+        desc = self.convDb(cDa)
+        dn = torch.norm(desc, p=2, dim=1)  # Compute the norm.
+        desc = desc.div(torch.unsqueeze(dn, 1))  # Divide by norm to normalize.
+        return semi, desc
 
 
 # class Encoder(nn.Module):
@@ -119,13 +120,15 @@ class Head(nn.Module):
     MLP network predicting per-pixel scene coordinates given a feature vector. All layers are 1x1 convolutions.
     """
 
-    def __init__(self,
-                 mean,
-                 num_head_blocks,
-                 use_homogeneous,
-                 homogeneous_min_scale=0.01,
-                 homogeneous_max_scale=4.0,
-                 in_channels=512):
+    def __init__(
+        self,
+        mean,
+        num_head_blocks,
+        use_homogeneous,
+        homogeneous_min_scale=0.01,
+        homogeneous_max_scale=4.0,
+        in_channels=512,
+    ):
         super(Head, self).__init__()
 
         self.use_homogeneous = use_homogeneous
@@ -133,9 +136,11 @@ class Head(nn.Module):
         self.head_channels = 512  # Hardcoded.
 
         # We may need a skip layer if the number of features output by the encoder is different.
-        self.head_skip = nn.Identity() if self.in_channels == self.head_channels else nn.Conv2d(self.in_channels,
-                                                                                                self.head_channels, 1,
-                                                                                                1, 0)
+        self.head_skip = (
+            nn.Identity()
+            if self.in_channels == self.head_channels
+            else nn.Conv2d(self.in_channels, self.head_channels, 1, 1, 0)
+        )
 
         self.res3_conv1 = nn.Conv2d(self.in_channels, self.head_channels, 1, 1, 0)
         self.res3_conv2 = nn.Conv2d(self.head_channels, self.head_channels, 1, 1, 0)
@@ -144,15 +149,19 @@ class Head(nn.Module):
         self.res_blocks = nn.ModuleList()
 
         for block in range(num_head_blocks):
-            self.res_blocks.append(nn.ModuleList([
-                nn.Conv2d(self.head_channels, self.head_channels, 1, 1, 0),
-                nn.Conv2d(self.head_channels, self.head_channels, 1, 1, 0),
-                nn.Conv2d(self.head_channels, self.head_channels, 1, 1, 0),
-            ]))
+            self.res_blocks.append(
+                nn.ModuleList(
+                    [
+                        nn.Conv2d(self.head_channels, self.head_channels, 1, 1, 0),
+                        nn.Conv2d(self.head_channels, self.head_channels, 1, 1, 0),
+                        nn.Conv2d(self.head_channels, self.head_channels, 1, 1, 0),
+                    ]
+                )
+            )
 
-            super(Head, self).add_module(str(block) + 'c0', self.res_blocks[block][0])
-            super(Head, self).add_module(str(block) + 'c1', self.res_blocks[block][1])
-            super(Head, self).add_module(str(block) + 'c2', self.res_blocks[block][2])
+            super(Head, self).add_module(str(block) + "c0", self.res_blocks[block][0])
+            super(Head, self).add_module(str(block) + "c1", self.res_blocks[block][1])
+            super(Head, self).add_module(str(block) + "c2", self.res_blocks[block][2])
 
         self.fc1 = nn.Conv2d(self.head_channels, self.head_channels, 1, 1, 0)
         self.fc2 = nn.Conv2d(self.head_channels, self.head_channels, 1, 1, 0)
@@ -163,9 +172,9 @@ class Head(nn.Module):
             # Use buffers because they need to be saved in the state dict.
             self.register_buffer("max_scale", torch.tensor([homogeneous_max_scale]))
             self.register_buffer("min_scale", torch.tensor([homogeneous_min_scale]))
-            self.register_buffer("max_inv_scale", 1. / self.max_scale)
-            self.register_buffer("h_beta", math.log(2) / (1. - self.max_inv_scale))
-            self.register_buffer("min_inv_scale", 1. / self.min_scale)
+            self.register_buffer("max_inv_scale", 1.0 / self.max_scale)
+            self.register_buffer("h_beta", math.log(2) / (1.0 - self.max_inv_scale))
+            self.register_buffer("min_inv_scale", 1.0 / self.min_scale)
         else:
             self.fc3 = nn.Conv2d(self.head_channels, 3, 1, 1, 0)
 
@@ -173,7 +182,6 @@ class Head(nn.Module):
         self.register_buffer("mean", mean.clone().detach().view(1, 3, 1, 1))
 
     def forward(self, res: torch.Tensor):
-
         x = F.relu(self.res3_conv1(res))
         x = F.relu(self.res3_conv2(x))
         x = F.relu(self.res3_conv3(x))
@@ -194,7 +202,10 @@ class Head(nn.Module):
         if self.use_homogeneous:
             # Dehomogenize coords:
             # Softplus ensures we have a smooth homogeneous parameter with a minimum value = self.max_inv_scale.
-            h_slice = F.softplus(sc[:, 3, :, :].unsqueeze(1), beta=self.h_beta.item()) + self.max_inv_scale
+            h_slice = (
+                F.softplus(sc[:, 3, :, :].unsqueeze(1), beta=self.h_beta.item())
+                + self.max_inv_scale
+            )
             h_slice.clamp_(max=self.min_inv_scale.item())
             sc = sc[:, :3] / h_slice
 
@@ -213,7 +224,9 @@ class Regressor(nn.Module):
 
     OUTPUT_SUBSAMPLE = 8
 
-    def __init__(self, mean, num_head_blocks, use_homogeneous, num_encoder_features=512):
+    def __init__(
+        self, mean, num_head_blocks, use_homogeneous, num_encoder_features=512
+    ):
         """
         Constructor.
 
@@ -228,10 +241,14 @@ class Regressor(nn.Module):
 
         # self.encoder = Encoder(out_channels=self.feature_dim)
         self.encoder = SuperPointNet()
-        self.heads = Head(mean, num_head_blocks, use_homogeneous, in_channels=self.feature_dim)
+        self.heads = Head(
+            mean, num_head_blocks, use_homogeneous, in_channels=self.feature_dim
+        )
 
     @classmethod
-    def create_from_encoder(cls, encoder_state_dict, mean, num_head_blocks, use_homogeneous):
+    def create_from_encoder(
+        cls, encoder_state_dict, mean, num_head_blocks, use_homogeneous
+    ):
         """
         Create a regressor using a pretrained encoder, loading encoder-specific parameters from the state dict.
 
@@ -246,7 +263,9 @@ class Regressor(nn.Module):
         num_encoder_features = 256
 
         # Create a regressor.
-        _logger.info(f"Creating Regressor using pretrained encoder with {num_encoder_features} feature size.")
+        _logger.info(
+            f"Creating Regressor using pretrained encoder with {num_encoder_features} feature size."
+        )
         regressor = cls(mean, num_head_blocks, use_homogeneous, num_encoder_features)
 
         # Load encoder weights.
@@ -277,10 +296,12 @@ class Regressor(nn.Module):
         num_encoder_features = 256
 
         # Create a regressor.
-        _logger.info(f"Creating regressor from pretrained state_dict:"
-                     f"\n\tNum head blocks: {num_head_blocks}"
-                     f"\n\tHomogeneous coordinates: {use_homogeneous}"
-                     f"\n\tEncoder feature size: {num_encoder_features}")
+        _logger.info(
+            f"Creating regressor from pretrained state_dict:"
+            f"\n\tNum head blocks: {num_head_blocks}"
+            f"\n\tHomogeneous coordinates: {use_homogeneous}"
+            f"\n\tEncoder feature size: {num_encoder_features}"
+        )
         regressor = cls(mean, num_head_blocks, use_homogeneous, num_encoder_features)
 
         # Load all weights.
@@ -302,11 +323,17 @@ class Regressor(nn.Module):
         # To make the model scriptable, converting to nn.moduleList has renamed some model parameters
         # The following code backports the old pretrained weight format to the new format if it is necessary
         cur_head_block = 0
-        while(f'{cur_head_block}c0.weight' in encoder_state_dict):
+        while f"{cur_head_block}c0.weight" in encoder_state_dict:
             for weight_type in ["weight", "bias"]:
                 for weight_num in range(3):
-                    encoder_state_dict[f'res_blocks.{cur_head_block}.{weight_num}.{weight_type}'] = encoder_state_dict[f'{cur_head_block}c{weight_type}.{weight_type}']
-                    del encoder_state_dict[f'{cur_head_block}c{weight_type}.{weight_type}']
+                    encoder_state_dict[
+                        f"res_blocks.{cur_head_block}.{weight_num}.{weight_type}"
+                    ] = encoder_state_dict[
+                        f"{cur_head_block}c{weight_type}.{weight_type}"
+                    ]
+                    del encoder_state_dict[
+                        f"{cur_head_block}c{weight_type}.{weight_type}"
+                    ]
             cur_head_block += 1
 
         # We simply merge the dictionaries and call the other constructor.

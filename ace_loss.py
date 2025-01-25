@@ -23,13 +23,14 @@ class ReproLoss:
     - l1+logl1: Similar to the above, but using log L1 for pixels with high reprojection error.
     """
 
-    def __init__(self,
-                 total_iterations,
-                 soft_clamp,
-                 soft_clamp_min,
-                 type='dyntanh',
-                 circle_schedule=True):
-
+    def __init__(
+        self,
+        total_iterations,
+        soft_clamp,
+        soft_clamp_min,
+        type="dyntanh",
+        circle_schedule=True,
+    ):
         self.total_iterations = total_iterations
         self.soft_clamp = soft_clamp
         self.soft_clamp_min = soft_clamp_min
@@ -49,7 +50,7 @@ class ReproLoss:
 
             if self.circle_schedule:
                 # Optionally scale it using the circular schedule.
-                schedule_weight = 1 - np.sqrt(1 - schedule_weight ** 2)
+                schedule_weight = 1 - np.sqrt(1 - schedule_weight**2)
 
             # Compute the weight to use in the tanh loss.
             loss_weight = (1 - schedule_weight) * self.soft_clamp + self.soft_clamp_min
@@ -66,7 +67,9 @@ class ReproLoss:
             # L1 loss on pixels with small errors and sqrt for the others.
             softclamp_mask_b1 = repro_errs_b1N > self.soft_clamp
             loss_l1 = repro_errs_b1N[~softclamp_mask_b1].sum()
-            loss_sqrt = torch.sqrt(self.soft_clamp * repro_errs_b1N[softclamp_mask_b1]).sum()
+            loss_sqrt = torch.sqrt(
+                self.soft_clamp * repro_errs_b1N[softclamp_mask_b1]
+            ).sum()
 
             return loss_l1 + loss_sqrt
 
@@ -74,6 +77,8 @@ class ReproLoss:
             # l1+logl1: same as above, but use log(L1) for pixels with a larger error.
             softclamp_mask_b1 = repro_errs_b1N > self.soft_clamp
             loss_l1 = repro_errs_b1N[~softclamp_mask_b1].sum()
-            loss_logl1 = torch.log(1 + (self.soft_clamp * repro_errs_b1N[softclamp_mask_b1])).sum()
+            loss_logl1 = torch.log(
+                1 + (self.soft_clamp * repro_errs_b1N[softclamp_mask_b1])
+            ).sum()
 
             return loss_l1 + loss_logl1
