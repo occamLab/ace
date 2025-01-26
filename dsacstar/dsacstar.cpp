@@ -186,11 +186,11 @@ int dsacstar_rgb_forward(
 		outPose[y][x] = estTrans(y, x);
 
 	auto inlierMapOut = inlierMapOutSrc.accessor<float, 2>();
-	for (int x = 0; x < sampling.cols; x++)
-	for (int y = 0; y < sampling.rows; y++)
-	{
-		inlierMapOut[y][x] = inlierMap(y, x);
-	}
+	// for (int x = 0; x < sampling.cols; x++)
+	// for (int y = 0; y < sampling.rows; y++)
+	// {
+	// 	inlierMapOut[y][x] = inlierMap(y, x);
+	// }
 
 	// Return the inlier count. cv::sum returns a scalar, so we return its first element.
 	return cv::sum(inlierMap)[0];

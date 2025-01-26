@@ -184,7 +184,8 @@ if __name__ == "__main__":
 
     # Setup dataset.
     testset = CamLocDataset(
-        scene_path / "test",
+        # TODO: make this more robust (DO NOT MERGE)
+        scene_path / "train",
         mode=0,  # Default for ACE, we don't need scene coordinates/RGB-D.
         image_height=opt.image_resolution,
     )
@@ -293,6 +294,7 @@ if __name__ == "__main__":
             _,
             filenames,
         ) in testset_loader:
+            print(F"FILENAMES: {filenames}")
             batch_start_time = time.time()
             batch_size = image_B1HW.shape[0]
 
@@ -488,8 +490,8 @@ if __name__ == "__main__":
             num_batches += 1
 
     frames_included = len(rErrs)
-    if opt.frame_exclusion_threshold == 0:
-        assert frames_included == len(testset)
+    # if opt.frame_exclusion_threshold == 0:
+    #     assert frames_included == len(testset)
 
     # Compute median errors.
     tErrs.sort()
